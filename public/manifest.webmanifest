@@ -1,0 +1,17 @@
+{
+  "name": "رتّل — القرآن وعلومه",
+  "short_name": "رتّل",
+  "description": "منصة لتعلّم التجويد وعلوم القرآن والفقه والحديث والمعاملات مع متابعة الحفظ",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ea",
+  "theme_color": "#35594d",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

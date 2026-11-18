@@ -36,6 +36,15 @@
   const isActive = () => S.me && S.me.status === 'active';
   const isAdmin = () => isActive() && S.me.role === 'admin';
 
+  // ───────── تثبيت التطبيق (PWA) ─────────
+  let deferredInstall = null;
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; document.querySelectorAll('[data-act=install]').forEach((b) => (b.hidden = false)); });
+  window.addEventListener('appinstalled', () => { deferredInstall = null; document.querySelectorAll('[data-act=install]').forEach((b) => (b.hidden = true)); toast('تم تثبيت التطبيق ✔'); });
+  const installBtn = () => isStandalone() ? '' : `<p><button class="btn sm" data-act="install" ${deferredInstall || isIOS() ? '' : 'hidden'}>📲 تثبيت التطبيق على هاتفك</button></p>`;
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => { }));
+
   // ───────── الهيكل ─────────
   function shell(body, active) {
     const m = S.me;
@@ -53,7 +62,7 @@
       <div><h4>رتّل</h4><p class="quran" style="margin:0">﴿وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا﴾</p><p class="small">منصة لتعلّم التجويد وعلوم القرآن والفقه والحديث والمعاملات، مع متابعة الحفظ بإشراف المسؤول.</p></div>
       <div><h4>الأقسام</h4>${(S.pub?.sections || []).map((s) => `<a href="${isActive() ? '#/sec/' + s.id : '#/register'}">${esc(s.icon)} ${esc(s.name)}</a>`).join('')}</div>
       <div><h4>روابط</h4><a href="#/">الرئيسية</a>${m ? '<a href="#/me">حسابي</a>' : '<a href="#/login">تسجيل الدخول</a><a href="#/register">إنشاء حساب</a>'}</div>
-      <div class="copy">صُنع بمحبّة للقرآن الكريم — اللهم اجعله ربيع قلوبنا</div></div></footer>`;
+      <div class="copy">${installBtn()}صُنع بمحبّة للقرآن الكريم — اللهم اجعله ربيع قلوبنا</div></div></footer>`;
     window.scrollTo(0, 0);
   }
   const loading = () => { $app.innerHTML = '<div class="spin">… جارٍ التحميل</div>'; };
@@ -376,6 +385,10 @@
       else if (act === 'ustatus') { await api(`/admin/users/${el.dataset.id}/status`, { method: 'POST', body: { status: el.dataset.v } }); const u = aUsers.find((x) => x.id == el.dataset.id); u.status = el.dataset.v; paintUsers(); toast('تم ✔'); }
       else if (act === 'upw') { const r = await api(`/admin/users/${el.dataset.id}/password`, { method: 'POST', body: {} }); modal(`<h3>كلمة سر جديدة</h3><p class="muted">سلّمها للمستخدم، ولن تظهر مرة أخرى:</p><div class="pwbox">${esc(r.password)}</div><p class="center"><button class="btn green" data-act="close">تم</button></p>`); }
       else if (act === 'udel') { if (confirm('حذف هذا المستخدم وكل تقدّمه نهائيًا؟')) { await api('/admin/users/' + el.dataset.id, { method: 'DELETE' }); aUsers = aUsers.filter((x) => x.id != el.dataset.id); paintUsers(); toast('تم الحذف'); } }
+      else if (act === 'install') {
+        if (deferredInstall) { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; }
+        else if (isIOS()) modal('<h3>تثبيت رتّل على الآيفون</h3><p>1) افتح الموقع في <b>Safari</b>.<br>2) اضغط زر المشاركة <b>⬆︎</b> في الأسفل.<br>3) اختر <b>«إضافة إلى الشاشة الرئيسية»</b>.</p><p class="center"><button class="btn green" data-act="close">حسنًا</button></p>');
+      }
       else if (act === 'close') document.querySelector('.modal')?.remove();
     } catch (x) { toast(x.message); if (x.status === 401) { S.me = null; go('#/login'); } }
   });
