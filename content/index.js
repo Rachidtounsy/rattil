@@ -1,17 +1,10 @@
 // يجمع كل محتوى التطبيق: تجويد (من محتوى «رتّل» برواية ورش) + علوم القرآن + فقه + حديث + معاملات + فهرس الحفظ
-const vm = require('node:vm');
-const fs = require('node:fs');
-const path = require('node:path');
-
-function loadLegacy(file) {
-  const ctx = { window: {} };
-  vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), ctx);
-  return ctx.window;
-}
-
-const legacy = loadLegacy('legacy-tajweed.js');
-const hifzLegacy = loadLegacy('legacy-hifz.js');
+// الملفات القديمة تعرّف window.* — نحمّلها بـ require حتى يضمّها المجمّع (esbuild) داخل دالة Netlify
+globalThis.window = globalThis.window || {};
+require('./legacy-tajweed.js');
+require('./legacy-hifz.js');
+const legacy = globalThis.window;
+const hifzLegacy = globalThis.window;
 
 function fromLegacyCard(card, level) {
   const facts = [], tl = [];
