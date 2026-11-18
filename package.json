@@ -1,0 +1,13 @@
+{
+  "name": "rattil-app",
+  "version": "1.0.0",
+  "description": "منصة رتّل لتعلّم القرآن وعلومه والفقه والحديث والمعاملات",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node scripts/check-content.js"
+  },
+  "dependencies": { "express": "^4.21.2" }
+}
