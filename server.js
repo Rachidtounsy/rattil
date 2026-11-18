@@ -7,10 +7,11 @@ const content = require('./content');
 const { makeQuiz, publicQ, gradeOne, correctView, LEVEL_TITLES } = require('./lib/gen');
 
 const { sections, PASS_SCORE } = content;
-const PROD = process.env.NODE_ENV === 'production' || !!process.env.NETLIFY;
+const SERVERLESS = !!(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+const PROD = process.env.NODE_ENV === 'production' || SERVERLESS;
 const app = express();
 app.disable('x-powered-by');
-if (process.env.TRUST_PROXY || process.env.NETLIFY) app.set('trust proxy', 1);
+if (process.env.TRUST_PROXY || SERVERLESS) app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
   res.set({
