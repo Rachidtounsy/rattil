@@ -29,7 +29,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // ───────── أدوات ─────────
-const SESSION_DAYS = 30;
+const SESSION_DAYS = 365; // الجلسة سنة كاملة وتتجدد مع الاستعمال
 const cookieOpts = (req, maxAge) => ({ httpOnly: true, sameSite: 'lax', secure: PROD || req.secure, path: '/', maxAge });
 function parseCookies(req) { const o = {}; (req.headers.cookie || '').split(';').forEach((p) => { const i = p.indexOf('='); if (i > 0) o[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim()); }); return o; }
 const hits = new Map();
@@ -49,7 +49,14 @@ async function auth(req, res, next) {
   const t = parseCookies(req).sid;
   if (t) {
     const s = (await get('SELECT user_id, expires_at FROM sessions WHERE token_hash=?', sec.sha(t)));
-    if (s && s.expires_at > Date.now()) req.user = (await get('SELECT * FROM users WHERE id=?', s.user_id));
+    if (s && s.expires_at > Date.now()) {
+      req.user = (await get('SELECT * FROM users WHERE id=?', s.user_id));
+      // تجديد منزلق: إذا مرّ أكثر من أسبوع على آخر تجديد نمدّد الجلسة سنة جديدة
+      if (req.user && s.expires_at - Date.now() < (SESSION_DAYS - 7) * 864e5) {
+        await run('UPDATE sessions SET expires_at=? WHERE token_hash=?', Date.now() + SESSION_DAYS * 864e5, sec.sha(t));
+        res.cookie('sid', t, cookieOpts(req, SESSION_DAYS * 864e5));
+      }
+    }
   }
   await cleanup().catch(() => {});
   } catch (e) { console.error(e); return res.status(500).json({ error: 'server_error' }); }
