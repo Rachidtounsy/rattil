@@ -276,12 +276,12 @@
     const c = [0, 0, 0]; items.forEach((i) => c[i.status]++);
     const shown = items.filter((i) => hFilter === 'all' || String(i.status) === hFilter);
     shell(`<div class="wrap page"><div class="crumbs"><a href="#/">الرئيسية</a> ‹ <span>الحفظ</span></div>
-      <h2>🕯️ سور وآيات فاضلات</h2><p class="muted">المسؤول هو من يحدّد حالة حفظك لكل وحدة. تابع تقدّمك هنا.</p>
+      <h2>🕯️ سور وآيات فاضلات</h2><p class="muted">${isAdmin() ? 'بصفتك مشرفًا، تحدّد حالة حفظك بنفسك من القائمة.' : 'المسؤول هو من يحدّد حالة حفظك لكل وحدة. تابع تقدّمك هنا.'}</p>
       <div class="summary"><div class="stat"><b>${c[2]}</b><span>محفوظ</span></div><div class="stat"><b>${c[1]}</b><span>قيد الحفظ</span></div><div class="stat"><b>${c[0]}</b><span>لم يبدأ</span></div>
       <div class="stat"><b>${Math.round(c[2] / items.length * 100)}%</b><span>نسبة الإنجاز</span></div></div>
       <div class="bar" style="margin-bottom:18px;height:14px"><i style="width:${Math.round(c[2] / items.length * 100)}%"></i></div>
       <div class="filters">${[['all', 'الكل'], ['2', 'محفوظ'], ['1', 'قيد الحفظ'], ['0', 'لم يبدأ']].map(([k, t]) => `<button class="fl ${hFilter === k ? 'on' : ''}" data-act="hfilter" data-k="${k}">${t}</button>`).join('')}</div>
-      <div class="hlist">${hifzRows(shown, (i) => `<span class="badge s${i.status}">${i.status === 2 ? '✓ ' : ''}${STATUS[i.status]}</span>`) || '<p class="muted center">لا توجد وحدات في هذا التصنيف.</p>'}</div></div>`, 'hifz');
+      <div class="hlist">${hifzRows(shown, (i) => isAdmin() ? `<select class="mini" data-act="hset" data-uid="${S.me.id}" data-key="${esc(i.key)}">${[0, 1, 2].map((v) => `<option value="${v}" ${i.status === v ? 'selected' : ''}>${STATUS[v]}</option>`).join('')}</select>` : `<span class="badge s${i.status}">${i.status === 2 ? '✓ ' : ''}${STATUS[i.status]}</span>`) || '<p class="muted center">لا توجد وحدات في هذا التصنيف.</p>'}</div></div>`, 'hifz');
   }
 
   // ───────── لوحة الشرف ─────────
@@ -395,7 +395,7 @@
   document.addEventListener('change', async (e) => {
     const el = e.target.closest('[data-act]'); if (!el) return;
     if (el.dataset.act === 'match') { const a = Q.ans[Q.i]; a[Number(el.dataset.k)] = el.value === '' ? null : Number(el.value); renderQ(); }
-    if (el.dataset.act === 'hset') { try { await api(`/admin/users/${el.dataset.uid}/hifz`, { method: 'POST', body: { key: el.dataset.key, status: Number(el.value) } }); el.closest('.hi').className = 'hi s' + el.value; toast('تم الحفظ ✔'); } catch (x) { toast(x.message); } }
+    if (el.dataset.act === 'hset') { try { await api(`/admin/users/${el.dataset.uid}/hifz`, { method: 'POST', body: { key: el.dataset.key, status: Number(el.value) } }); el.closest('.hi').className = 'hi s' + el.value; toast('تم الحفظ ✔'); if (location.hash === '#/hifz') setTimeout(viewHifz, 400); } catch (x) { toast(x.message); } }
   });
   function modal(html) { const m = document.createElement('div'); m.className = 'modal'; m.innerHTML = `<div>${html}</div>`; m.onclick = (e) => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
 

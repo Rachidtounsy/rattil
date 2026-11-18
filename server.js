@@ -239,7 +239,7 @@ app.get('/api/admin/users', ...A, wrap(async (req, res) => {
   const rows = (await all("SELECT * FROM users WHERE role='user' ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END, id DESC"));
   res.json({ users: await Promise.all(rows.map(async (u) => ({ ...publicUser(u), createdAt: u.created_at, lastLogin: u.last_login, ...(await userStats(u.id)) }))), totalLevels: sections.reduce((a, s) => a + s.topics.length * 10, 0) });
 }));
-const target = async (req, res) => { const u = (await get("SELECT * FROM users WHERE id=? AND role='user'", Number(req.params.id))); if (!u) res.status(404).json({ error: 'not_found' }); return u; };
+const target = async (req, res) => { const u = (await get("SELECT * FROM users WHERE id=? AND (role='user' OR id=?)", Number(req.params.id), req.user.id)); if (!u) res.status(404).json({ error: 'not_found' }); return u; };
 app.post('/api/admin/users/:id/status', ...A, wrap(async (req, res) => {
   const u = await target(req, res); if (!u) return;
   const st = req.body.status; if (!['active', 'pending', 'blocked'].includes(st)) return res.status(400).json({ error: 'bad_status' });
