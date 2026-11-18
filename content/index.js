@@ -51,7 +51,17 @@ const sections = [
     topics: require('./sections-muamalat.js').map(t => fromNew(t, 'm')) }
 ];
 
-const hifzItems = hifzLegacy.SURAHS.map((s, i) => ({ key: s.key, name: s.name, page: s.page, n: s.n, ord: i + 1 }));
+// المجموعة 1: وحدات كتاب «سور وآيات فاضلات» بترتيبه. المجموعة 2: القرآن كاملًا بترتيب المصحف.
+const SURAHS114 = require('./quran-surahs.js');
+const KEY_NUM = { fatiha: 1, baqara: 2, imran: 3, tawba: 9, kahf: 18, sajda: 32, yasin: 36, ghafir: 40, dukhan: 44, fath: 48, waqia: 56, hadid: 57, hashr: 59, saff: 61, jumua: 62, taghabun: 64, mulk: 67, ala: 87, duha: 93, sharh: 94, alaq: 96, qadr: 97, zalzala: 99, takathur: 102, asr: 103, quraysh: 106, maun: 107, kawthar: 108, kafirun: 109, nasr: 110, ikhlas: 112, falaq: 113, nas: 114 };
+const PARTIAL = new Set(['baqara', 'imran', 'tawba', 'kahf', 'ghafir', 'fath']);
+const wholeDone = new Set(hifzLegacy.SURAHS.filter((s) => !PARTIAL.has(s.key)).map((s) => KEY_NUM[s.key]));
+const hifzItems = hifzLegacy.SURAHS.map((s) => ({ key: s.key, name: s.name, page: s.page, n: s.n, grp: 'book' }));
+SURAHS114.forEach(([name, n], i) => {
+  const num = i + 1; if (wholeDone.has(num)) return;
+  hifzItems.push({ key: 's' + num, name: 'سورة ' + name + (PARTIAL.has(Object.keys(KEY_NUM).find((k) => KEY_NUM[k] === num)) ? ' (كاملة)' : ''), page: null, n, grp: 'full' });
+});
+hifzItems.forEach((it, i) => { it.ord = i + 1; });
 
 const topicIndex = new Map();
 for (const s of sections) for (const t of s.topics) { t.section = s.id; topicIndex.set(t.id, t); }

@@ -251,6 +251,15 @@
   }
 
   // ───────── الحفظ ─────────
+  const GRP = { book: ['📖 وحدات كتاب «سور وآيات فاضلات»', 'بترتيب الكتاب'], full: ['🕌 القرآن الكريم كاملًا', 'باقي السور بترتيب المصحف'] };
+  function hifzRows(items, right) {
+    let last = '', out = '';
+    for (const i of items) {
+      if (i.grp !== last) { last = i.grp; out += `<div class="stage" style="margin:18px 0 4px"><h3>${GRP[i.grp][0]}</h3><span>${GRP[i.grp][1]}</span></div>`; }
+      out += `<div class="hi s${i.status}"><div class="no">${i.ord}</div><div class="nm">${esc(i.name)}<small>${i.n ? i.n + ' آية' : 'مقاطع مختارة'}${i.page ? ' · ص ' + i.page : ''}</small></div>${right(i)}</div>`;
+    }
+    return out;
+  }
   let hFilter = 'all';
   async function viewHifz() {
     if (!isActive()) return go('#/login');
@@ -263,7 +272,7 @@
       <div class="stat"><b>${Math.round(c[2] / items.length * 100)}%</b><span>نسبة الإنجاز</span></div></div>
       <div class="bar" style="margin-bottom:18px;height:14px"><i style="width:${Math.round(c[2] / items.length * 100)}%"></i></div>
       <div class="filters">${[['all', 'الكل'], ['2', 'محفوظ'], ['1', 'قيد الحفظ'], ['0', 'لم يبدأ']].map(([k, t]) => `<button class="fl ${hFilter === k ? 'on' : ''}" data-act="hfilter" data-k="${k}">${t}</button>`).join('')}</div>
-      <div class="hlist">${shown.map((i) => `<div class="hi s${i.status}"><div class="no">${i.ord}</div><div class="nm">${esc(i.name)}<small>${i.n ? i.n + ' آية' : 'مقاطع مختارة'} · ص ${i.page}</small></div><span class="badge s${i.status}">${i.status === 2 ? '✓ ' : ''}${STATUS[i.status]}</span></div>`).join('') || '<p class="muted center">لا توجد وحدات في هذا التصنيف.</p>'}</div></div>`, 'hifz');
+      <div class="hlist">${hifzRows(shown, (i) => `<span class="badge s${i.status}">${i.status === 2 ? '✓ ' : ''}${STATUS[i.status]}</span>`) || '<p class="muted center">لا توجد وحدات في هذا التصنيف.</p>'}</div></div>`, 'hifz');
   }
 
   // ───────── لوحة الشرف ─────────
@@ -345,7 +354,7 @@
       ${secs}
       <div class="section-title"><h2 style="font-size:24px">🕯️ متابعة الحفظ</h2></div>
       <div class="toolbar"><span>تعيين الكل إلى:</span><select class="mini" id="hall">${opt(-1)}<option value="" selected>—</option></select></div>
-      <div class="hlist">${d.hifz.map((i) => `<div class="hi s${i.status}"><div class="no">${i.ord}</div><div class="nm">${esc(i.name)}<small>${i.n ? i.n + ' آية' : 'مقاطع مختارة'} · ص ${i.page}</small></div><select class="mini" data-act="hset" data-uid="${u.id}" data-key="${esc(i.key)}">${opt(i.status)}</select></div>`).join('')}</div></div>`, 'admin');
+      <div class="hlist">${hifzRows(d.hifz, (i) => `<select class="mini" data-act="hset" data-uid="${u.id}" data-key="${esc(i.key)}">${opt(i.status)}</select>`)}</div></div>`, 'admin');
     const all = document.getElementById('hall');
     all.onchange = async (e) => { if (e.target.value === '') return; await api(`/admin/users/${u.id}/hifz`, { method: 'POST', body: { keys: d.hifz.map((i) => i.key), status: Number(e.target.value) } }); toast('تم التحديث ✔'); viewAdminUser(id); };
   }
