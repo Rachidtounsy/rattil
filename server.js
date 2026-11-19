@@ -92,10 +92,11 @@ app.post('/api/register', wrap(async (req, res) => {
   if (!sec.validPhone(phone)) return res.status(400).json({ error: 'phone', message: 'رقم الهاتف غير صالح.' });
   if (typeof password !== 'string' || password.length < 6 || password.length > 100) return res.status(400).json({ error: 'password', message: 'كلمة السر 6 أحرف على الأقل.' });
   if (password !== password2) return res.status(400).json({ error: 'password2', message: 'تأكيد كلمة السر غير مطابق.' });
+  const auto = (await getSetting('auto_activate', '1')) === '1';
   const h = sec.blindIndex(phone);
   if ((await get('SELECT 1 FROM users WHERE phone_hash=?', h))) return res.status(409).json({ error: 'exists', message: 'هذا الرقم مسجَّل من قبل. جرّب تسجيل الدخول.' });
-  (await run("INSERT INTO users(name_enc,phone_enc,phone_hash,pass_hash,role,status) VALUES(?,?,?,?,'user','pending')", sec.encrypt(name), sec.encrypt(phone), h, sec.hashPassword(password)));
-  res.json({ ok: true, pending: true });
+  (await run("INSERT INTO users(name_enc,phone_enc,phone_hash,pass_hash,role,status) VALUES(?,?,?,?,'user',?)", sec.encrypt(name), sec.encrypt(phone), h, sec.hashPassword(password), auto ? 'active' : 'pending'));
+  res.json({ ok: true, pending: !auto });
 }));
 
 app.post('/api/login', wrap(async (req, res) => {
@@ -332,8 +333,9 @@ app.post('/api/admin/users/:id/hifz', ...A, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 app.get('/api/admin/leaderboard', ...A, boardHandler(true));
-app.get('/api/admin/settings', ...A, wrap(async (req, res) => res.json({ leaderboard_public: (await getSetting('leaderboard_public')) === '1' })));
-app.post('/api/admin/settings', ...A, wrap(async (req, res) => { await setSetting('leaderboard_public', req.body.leaderboard_public ? '1' : '0'); res.json({ ok: true }); }));
+app.get('/api/admin/settings', ...A, wrap(async (req, res) => res.json({ leaderboard_public: (await getSetting('leaderboard_public')) === '1', auto_activate: (await getSetting('auto_activate', '1')) === '1' })));
+app.post('/api/admin/settings', ...A, wrap(async (req, res) => { if (req.body.leaderboard_public !== undefined) await setSetting('leaderboard_public', req.body.leaderboard_public ? '1' : '0');
+  if (req.body.auto_activate !== undefined) await setSetting('auto_activate', req.body.auto_activate ? '1' : '0'); res.json({ ok: true }); }));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'not_found' }));
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: PROD ? '1h' : 0 }));

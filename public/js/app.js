@@ -105,7 +105,7 @@
       <div class="cards">${cards}</div>
       <div class="section-title"><svg class="ornament" viewBox="0 0 64 64"><g fill="#c8962e"><rect x="14" y="14" width="36" height="36"/><rect x="14" y="14" width="36" height="36" transform="rotate(45 32 32)"/></g></svg><h2>كيف تعمل المنصة؟</h2></div>
       <div class="steps">
-        <div class="step"><b>أنشئ حسابك</b><p class="small muted" style="margin:.3em 0 0">بالاسم ورقم الهاتف وكلمة سر فقط، ثم ينتظر المسؤول ليفعّل حسابك.</p></div>
+        <div class="step"><b>أنشئ حسابك</b><p class="small muted" style="margin:.3em 0 0">بالاسم ورقم الهاتف وكلمة سر فقط، وتدخل مباشرة وتبدأ التعلّم.</p></div>
         <div class="step"><b>افتح بطائقك</b><p class="small muted" style="margin:.3em 0 0">كل قسم فيه فروع، وكل فرع فيه عشر مراحل، وكل مرحلة عشرة أسئلة متنوعة.</p></div>
         <div class="step"><b>اجتز المرحلة</b><p class="small muted" style="margin:.3em 0 0">حقّق ${S.cfg.passScore} من 10 لتفتح المرحلة التالية، وتزداد الصعوبة تدريجيًا.</p></div>
         <div class="step"><b>تابع حفظك</b><p class="small muted" style="margin:.3em 0 0">يحدّد المسؤول حالة محفوظك: لم يبدأ، قيد الحفظ، أو محفوظ.</p></div>
@@ -133,7 +133,7 @@
     document.getElementById('authf').onsubmit = async (e) => {
       e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const err = document.getElementById('err'); err.hidden = true;
       try {
-        if (reg) { await api('/register', { method: 'POST', body: f }); try { await api('/login', { method: 'POST', body: { phone: f.phone, password: f.password } }); await loadMe(); } catch { } go('#/pending'); }
+        if (reg) { await api('/register', { method: 'POST', body: f }); try { await api('/login', { method: 'POST', body: { phone: f.phone, password: f.password } }); await loadMe(); } catch { } go(isActive() ? '#/' : '#/pending'); }
         else { await api('/login', { method: 'POST', body: f }); await loadMe(); go(isActive() ? '#/' : '#/pending'); }
       } catch (ex) { err.textContent = ex.message; err.hidden = false; }
     };
@@ -339,7 +339,8 @@
     loading();
     if (tab === 'settings') {
       const st = await api('/admin/settings');
-      shell(`<div class="wrap page"><h2>الإدارة</h2>${tabs}<div class="switch"><button class="tog ${st.leaderboard_public ? 'on' : ''}" data-act="togLb" aria-label="تبديل"></button><div><b>إظهار لوحة الشرف للمستخدمين</b><div class="muted small">عند التعطيل تبقى لوحة الشرف ظاهرة لك أنت فقط (تُعرض الأسماء بدون أرقام الهواتف).</div></div></div></div>`, 'admin');
+      shell(`<div class="wrap page"><h2>الإدارة</h2>${tabs}<div class="switch"><button class="tog ${st.leaderboard_public ? 'on' : ''}" data-act="togLb" aria-label="تبديل"></button><div><b>إظهار لوحة الشرف للمستخدمين</b><div class="muted small">عند التعطيل تبقى لوحة الشرف ظاهرة لك أنت فقط (تُعرض الأسماء بدون أرقام الهواتف).</div></div></div>
+      <div class="switch" style="margin-top:12px"><button class="tog ${st.auto_activate ? 'on' : ''}" data-act="togAuto" aria-label="تبديل"></button><div><b>تفعيل الحسابات الجديدة تلقائيًا</b><div class="muted small">مفعّل: يدخل كل من يسجّل مباشرة. معطّل: يبقى الحساب بانتظار تفعيلك. وفي الحالتين تستطيع إيقاف أي حساب من «المستخدمون».</div></div></div></div>`, 'admin');
       return;
     }
     const d = await api('/admin/users'); aUsers = d.users; aTotal = d.totalLevels;
@@ -393,6 +394,7 @@
       else if (act === 'totray') { Q.ans[Q.i].push(Number(el.dataset.k)); renderQ(); }
       else if (act === 'untray') { Q.ans[Q.i].splice(Number(el.dataset.p), 1); renderQ(); }
       else if (act === 'hfilter') { hFilter = el.dataset.k; viewHifz(); }
+      else if (act === 'togAuto') { const on = !el.classList.contains('on'); await api('/admin/settings', { method: 'POST', body: { auto_activate: on } }); el.classList.toggle('on', on); toast(on ? 'الحسابات الجديدة تُفعَّل تلقائيًا' : 'الحسابات الجديدة تنتظر تفعيلك'); }
       else if (act === 'togLb') { const on = !el.classList.contains('on'); await api('/admin/settings', { method: 'POST', body: { leaderboard_public: on } }); el.classList.toggle('on', on); S.cfg.leaderboard = on; toast(on ? 'لوحة الشرف ظاهرة للمستخدمين' : 'لوحة الشرف مخفية عن المستخدمين'); }
       else if (act === 'ustatus') { await api(`/admin/users/${el.dataset.id}/status`, { method: 'POST', body: { status: el.dataset.v } }); const u = aUsers.find((x) => x.id == el.dataset.id); u.status = el.dataset.v; paintUsers(); toast('تم ✔'); }
       else if (act === 'upw') { const r = await api(`/admin/users/${el.dataset.id}/password`, { method: 'POST', body: {} }); modal(`<h3>كلمة سر جديدة</h3><p class="muted">سلّمها للمستخدم، ولن تظهر مرة أخرى:</p><div class="pwbox">${esc(r.password)}</div><p class="center"><button class="btn green" data-act="close">تم</button></p>`); }
