@@ -20,7 +20,7 @@
 
   // ───────── أدوات ─────────
   async function api(path, opts = {}) {
-    const r = await fetch('/api' + path, { method: opts.method || 'GET', headers: opts.body ? { 'content-type': 'application/json' } : {}, body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: 'same-origin' });
+    const r = await fetch('/api' + path, { method: opts.method || 'GET', headers: (opts.method && opts.method !== 'GET') || opts.body ? { 'content-type': 'application/json' } : {}, body: opts.body ? JSON.stringify(opts.body) : (opts.method && opts.method !== 'GET' ? '{}' : undefined), credentials: 'same-origin' });
     let data = {}; try { data = await r.json(); } catch { }
     if (!r.ok) { const e = new Error(data.message || data.error || 'error'); e.status = r.status; e.data = data; throw e; }
     return data;
@@ -314,8 +314,19 @@
     const hz = S.cat.sections.find((s) => s.kind === 'hifz').hifz;
     shell(`<div class="wrap page"><h2>حسابي</h2><div class="summary"><div class="stat"><b>${pts}</b><span>نقطة</span></div><div class="stat"><b>${tot}</b><span>مرحلة مجتازة</span></div><div class="stat"><b>${hz.done}/${hz.total}</b><span>محفوظ</span></div></div>
       <div class="card" style="max-width:520px"><p><b>${esc(S.me.name)}</b><br><span dir="ltr" class="muted">${esc(S.me.phone)}</span></p>
+      <h3>بياناتي</h3><form class="f" style="padding:0;margin-bottom:18px" id="prof">
+        <label class="l">الاسم<input class="i" name="name" value="${esc(S.me.name)}" required minlength="3" maxlength="60"></label>
+        <label class="l">رقم الهاتف<input class="i" name="phone" dir="ltr" inputmode="tel" value="${esc(S.me.phone)}" required></label>
+        <label class="l">كلمة السر الحالية <span class="muted small">(مطلوبة فقط عند تغيير الهاتف)</span><input class="i" type="password" name="current" autocomplete="current-password"></label>
+        <div class="err" id="perr" hidden></div><button class="btn green" type="submit">حفظ البيانات</button></form>
       <h3>تغيير كلمة السر</h3><form class="f" style="padding:0" id="pwf"><input class="i" type="password" name="current" placeholder="كلمة السر الحالية" required autocomplete="current-password"><input class="i" type="password" name="password" placeholder="كلمة السر الجديدة" minlength="6" required autocomplete="new-password"><input class="i" type="password" name="password2" placeholder="تأكيد كلمة السر الجديدة" required autocomplete="new-password"><div class="err" id="err" hidden></div><button class="btn green" type="submit">حفظ</button></form>
-      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn ghost" style="color:var(--bad)" data-act="logout">تسجيل الخروج</button></div></div>`, 'me');
+      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn ghost" style="color:var(--g7)" data-act="logout">تسجيل الخروج</button>
+      ${S.me.role === 'admin' ? '' : `<details style="margin-top:22px"><summary style="color:var(--bad);cursor:pointer;font-weight:700">حذف حسابي نهائيًا</summary><p class="muted small">سيُحذف حسابك وكل تقدّمك وحالة حفظك، ولا يمكن التراجع.</p><input class="i" type="password" id="delpw" placeholder="أدخل كلمة السر للتأكيد" autocomplete="current-password" style="margin-bottom:10px"><button class="btn danger" data-act="delme">حذف حسابي</button></details>`}</div></div>`, 'me');
+    document.getElementById('prof').onsubmit = async (e) => {
+      e.preventDefault(); const err = document.getElementById('perr'); err.hidden = true;
+      try { const r = await api('/me/profile', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); S.me = r.user; toast('تم حفظ بياناتك ✔'); viewMe(); }
+      catch (x) { err.textContent = x.message; err.hidden = false; }
+    };
     document.getElementById('pwf').onsubmit = async (e) => { e.preventDefault(); const err = document.getElementById('err'); err.hidden = true; try { await api('/me/password', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); e.target.reset(); toast('تم تغيير كلمة السر ✔'); } catch (x) { err.textContent = x.message; err.hidden = false; } };
   }
 
@@ -344,7 +355,7 @@
       <div class="toolbar"><input class="i" id="uq" placeholder="بحث بالاسم أو الهاتف" value="${esc(aFilter.q)}"><select class="i" id="ust" style="max-width:180px">${[['all', 'كل الحالات'], ['pending', 'بانتظار التفعيل'], ['active', 'مفعّل'], ['blocked', 'موقوف']].map(([v, t]) => `<option value="${v}" ${aFilter.st === v ? 'selected' : ''}>${t}</option>`).join('')}</select><span class="muted">${list.length} مستخدم</span></div>
       <div class="tbl-wrap"><table class="t"><thead><tr><th>الاسم</th><th>الهاتف</th><th>الحالة</th><th>النقاط</th><th>المراحل</th><th>الحفظ</th><th>التسجيل</th><th>إجراءات</th></tr></thead><tbody>
       ${list.map((u) => `<tr><td><a href="#/admin/user/${u.id}"><b>${esc(u.name)}</b></a></td><td dir="ltr">${esc(u.phone)}</td><td><span class="st ${u.status}">${stl[u.status]}</span></td><td>${u.points}</td><td>${u.levels}/${aTotal}</td><td>${u.hifzDone}${u.hifzDoing ? ` <span class="muted small">(+${u.hifzDoing})</span>` : ''}</td><td class="small">${fmtDate(u.createdAt)}</td>
-      <td><div class="acts">${u.status !== 'active' ? `<button class="btn green sm" data-act="ustatus" data-id="${u.id}" data-v="active">تفعيل</button>` : `<button class="btn sm" data-act="ustatus" data-id="${u.id}" data-v="blocked">إيقاف</button>`}<a class="btn sm" href="#/admin/user/${u.id}">التفاصيل</a><button class="btn sm" data-act="upw" data-id="${u.id}">كلمة سر جديدة</button><button class="btn danger sm" data-act="udel" data-id="${u.id}">حذف</button></div></td></tr>`).join('') || '<tr><td colspan="8" class="center muted">لا يوجد مستخدمون.</td></tr>'}
+      <td><div class="acts">${u.status !== 'active' ? `<button class="btn green sm" data-act="ustatus" data-id="${u.id}" data-v="active">تفعيل</button>` : `<button class="btn sm" data-act="ustatus" data-id="${u.id}" data-v="blocked">إيقاف</button>`}<a class="btn sm" href="#/admin/user/${u.id}">التفاصيل</a><button class="btn sm" data-act="uedit" data-id="${u.id}">تعديل</button><button class="btn sm" data-act="upw" data-id="${u.id}">كلمة سر جديدة</button><button class="btn danger sm" data-act="udel" data-id="${u.id}">حذف</button></div></td></tr>`).join('') || '<tr><td colspan="8" class="center muted">لا يوجد مستخدمون.</td></tr>'}
       </tbody></table></div>`;
     document.getElementById('uq').oninput = (e) => { aFilter.q = e.target.value; const pos = e.target.selectionStart; paintUsers(); const i = document.getElementById('uq'); i.focus(); i.setSelectionRange(pos, pos); };
     document.getElementById('ust').onchange = (e) => { aFilter.st = e.target.value; paintUsers(); };
@@ -359,6 +370,7 @@
     shell(`<div class="wrap page"><div class="crumbs"><a href="#/admin/users">الإدارة</a> ‹ <span>${esc(u.name)}</span></div>
       <h2>${esc(u.name)} <span class="st ${u.status}">${{ active: 'مفعّل', pending: 'بانتظار التفعيل', blocked: 'موقوف' }[u.status]}</span></h2>
       <p class="muted" dir="ltr" style="text-align:end">${esc(u.phone)}</p>
+      <p><button class="btn sm" data-act="uedit2" data-id="${u.id}">✏️ تعديل الاسم / الهاتف</button> <button class="btn sm" data-act="upw" data-id="${u.id}">كلمة سر جديدة</button></p>
       <div class="summary"><div class="stat"><b>${u.points}</b><span>نقطة</span></div><div class="stat"><b>${u.levels}</b><span>مرحلة مجتازة</span></div><div class="stat"><b>${u.hifzDone}</b><span>محفوظ</span></div><div class="stat"><b>${u.hifzDoing}</b><span>قيد الحفظ</span></div><div class="stat"><b style="font-size:20px;line-height:2">${fmtDate(u.lastLogin)}</b><span>آخر دخول</span></div></div>
       ${secs}
       <div class="section-title"><h2 style="font-size:24px">🕯️ متابعة الحفظ</h2></div>
@@ -384,6 +396,13 @@
       else if (act === 'togLb') { const on = !el.classList.contains('on'); await api('/admin/settings', { method: 'POST', body: { leaderboard_public: on } }); el.classList.toggle('on', on); S.cfg.leaderboard = on; toast(on ? 'لوحة الشرف ظاهرة للمستخدمين' : 'لوحة الشرف مخفية عن المستخدمين'); }
       else if (act === 'ustatus') { await api(`/admin/users/${el.dataset.id}/status`, { method: 'POST', body: { status: el.dataset.v } }); const u = aUsers.find((x) => x.id == el.dataset.id); u.status = el.dataset.v; paintUsers(); toast('تم ✔'); }
       else if (act === 'upw') { const r = await api(`/admin/users/${el.dataset.id}/password`, { method: 'POST', body: {} }); modal(`<h3>كلمة سر جديدة</h3><p class="muted">سلّمها للمستخدم، ولن تظهر مرة أخرى:</p><div class="pwbox">${esc(r.password)}</div><p class="center"><button class="btn green" data-act="close">تم</button></p>`); }
+      else if (act === 'uedit') { const u = aUsers.find((x) => x.id == el.dataset.id); editModal(u, (f) => { u.name = f.name; u.phone = f.phone.replace(/\D/g, ''); paintUsers(); viewAdmin('users'); }); }
+      else if (act === 'uedit2') { const d = await api('/admin/users/' + el.dataset.id); editModal(d.user, () => viewAdminUser(el.dataset.id)); }
+      else if (act === 'delme') {
+        const pw = document.getElementById('delpw').value; if (!pw) return toast('أدخل كلمة السر');
+        if (!confirm('سيُحذف حسابك وكل تقدّمك نهائيًا ولا يمكن التراجع. متأكد؟')) return;
+        await api('/me/delete', { method: 'POST', body: { password: pw } }); S.me = null; S.cat = null; toast('تم حذف حسابك'); go('#/');
+      }
       else if (act === 'udel') { if (confirm('حذف هذا المستخدم وكل تقدّمه نهائيًا؟')) { await api('/admin/users/' + el.dataset.id, { method: 'DELETE' }); aUsers = aUsers.filter((x) => x.id != el.dataset.id); paintUsers(); toast('تم الحذف'); } }
       else if (act === 'install') {
         if (deferredInstall) { deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall = null; }
@@ -397,6 +416,18 @@
     if (el.dataset.act === 'match') { const a = Q.ans[Q.i]; a[Number(el.dataset.k)] = el.value === '' ? null : Number(el.value); renderQ(); }
     if (el.dataset.act === 'hset') { try { await api(`/admin/users/${el.dataset.uid}/hifz`, { method: 'POST', body: { key: el.dataset.key, status: Number(el.value) } }); el.closest('.hi').className = 'hi s' + el.value; toast('تم الحفظ ✔'); if (location.hash === '#/hifz') setTimeout(viewHifz, 400); } catch (x) { toast(x.message); } }
   });
+  function editModal(u, done) {
+    modal(`<h3>تعديل بيانات المستخدم</h3><form class="f" style="padding:0" id="editf">
+      <label class="l">الاسم<input class="i" name="name" value="${esc(u.name)}" required minlength="3" maxlength="60"></label>
+      <label class="l">رقم الهاتف<input class="i" name="phone" dir="ltr" inputmode="tel" value="${esc(u.phone)}" required></label>
+      <div class="err" id="eerr" hidden></div>
+      <div style="display:flex;gap:10px"><button class="btn green" type="submit">حفظ</button><button class="btn ghost" type="button" data-act="close" style="color:var(--g7)">إلغاء</button></div></form>`);
+    document.getElementById('editf').onsubmit = async (e) => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const err = document.getElementById('eerr'); err.hidden = true;
+      try { await api(`/admin/users/${u.id}/edit`, { method: 'POST', body: f }); document.querySelector('.modal')?.remove(); toast('تم التعديل ✔'); done(f); }
+      catch (x) { err.textContent = x.message; err.hidden = false; }
+    };
+  }
   function modal(html) { const m = document.createElement('div'); m.className = 'modal'; m.innerHTML = `<div>${html}</div>`; m.onclick = (e) => { if (e.target === m) m.remove(); }; document.body.appendChild(m); }
 
   // ───────── التوجيه ─────────

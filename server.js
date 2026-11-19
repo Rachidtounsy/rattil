@@ -24,7 +24,8 @@ app.get('/healthz', (req, res) => res.send('ok'));
 app.use(express.json({ limit: '20kb' }));
 // حماية CSRF: الطلبات المعدِّلة يجب أن تكون JSON (لا يمكن إرسالها من نموذج خارجي)
 app.use('/api', (req, res, next) => {
-  if (req.method !== 'GET' && !req.is('application/json')) return res.status(415).json({ error: 'bad_content_type' });
+  if (req.method !== 'GET' && req.get('content-length') !== undefined && req.get('content-length') !== '0' && !req.is('application/json')) return res.status(415).json({ error: 'bad_content_type' });
+  if (req.method !== 'GET' && req.get('sec-fetch-site') === 'cross-site') return res.status(403).json({ error: 'cross_site' });
   next();
 });
 
@@ -123,6 +124,50 @@ app.post('/api/me/password', needLogin, wrap(async (req, res) => {
   if (typeof password !== 'string' || password.length < 6) return res.status(400).json({ message: 'كلمة السر الجديدة 6 أحرف على الأقل.' });
   if (password !== password2) return res.status(400).json({ message: 'تأكيد كلمة السر غير مطابق.' });
   (await run('UPDATE users SET pass_hash=? WHERE id=?', sec.hashPassword(password), req.user.id));
+  res.json({ ok: true });
+}));
+
+
+// ───────── تعديل البيانات وحذف الحساب ─────────
+async function changeIdentity(u, body) {
+  const out = {};
+  if (body.name !== undefined) {
+    const name = String(body.name).trim().replace(/\s+/g, ' ');
+    if (name.length < 3 || name.length > 60) return { error: 'الاسم يجب أن يكون بين 3 و60 حرفًا.' };
+    out.name = name;
+  }
+  if (body.phone !== undefined) {
+    const phone = sec.normPhone(body.phone);
+    if (!sec.validPhone(phone)) return { error: 'رقم الهاتف غير صالح.' };
+    const h = sec.blindIndex(phone);
+    const other = await get('SELECT id FROM users WHERE phone_hash=? AND id<>?', h, u.id);
+    if (other) return { error: 'هذا الرقم مستعمل في حساب آخر.' };
+    out.phone = phone; out.hash = h;
+  }
+  if (out.name !== undefined) await run('UPDATE users SET name_enc=? WHERE id=?', sec.encrypt(out.name), u.id);
+  if (out.phone !== undefined) await run('UPDATE users SET phone_enc=?, phone_hash=? WHERE id=?', sec.encrypt(out.phone), out.hash, u.id);
+  return { ok: true };
+}
+async function deleteUser(id) {
+  await batch(['sessions', 'progress', 'hifz_status'].map((t) => ['DELETE FROM ' + t + ' WHERE user_id=?', id]).concat([['DELETE FROM users WHERE id=?', id]]));
+}
+
+app.post('/api/me/profile', needLogin, wrap(async (req, res) => {
+  if (req.user.status === 'blocked') return res.status(403).json({ message: 'الحساب موقوف.' });
+  const { name, phone, current } = req.body;
+  const phoneChanged = phone !== undefined && sec.normPhone(phone) !== sec.decrypt(req.user.phone_enc);
+  if (phoneChanged && !sec.verifyPassword(String(current || ''), req.user.pass_hash)) return res.status(400).json({ message: 'لتغيير رقم الهاتف أدخل كلمة السر الحالية بشكل صحيح.' });
+  const r = await changeIdentity(req.user, { name, phone: phoneChanged ? phone : undefined });
+  if (r.error) return res.status(400).json({ message: r.error });
+  const u = await get('SELECT * FROM users WHERE id=?', req.user.id);
+  res.json({ ok: true, user: publicUser(u) });
+}));
+
+app.post('/api/me/delete', needLogin, wrap(async (req, res) => {
+  if (req.user.role === 'admin') return res.status(400).json({ message: 'لا يمكن حذف حساب المشرف من هنا.' });
+  if (!sec.verifyPassword(String(req.body.password || ''), req.user.pass_hash)) return res.status(400).json({ message: 'كلمة السر غير صحيحة.' });
+  await deleteUser(req.user.id);
+  res.clearCookie('sid', { path: '/' });
   res.json({ ok: true });
 }));
 
@@ -256,7 +301,13 @@ app.post('/api/admin/users/:id/password', ...A, wrap(async (req, res) => {
   (await run('DELETE FROM sessions WHERE user_id=?', u.id));
   res.json({ ok: true, password: pw });
 }));
-app.delete('/api/admin/users/:id', ...A, wrap(async (req, res) => { const u = await target(req, res); if (!u) return; await batch(['sessions', 'progress', 'hifz_status'].map((t) => ['DELETE FROM ' + t + ' WHERE user_id=?', u.id]).concat([['DELETE FROM users WHERE id=?', u.id]])); res.json({ ok: true }); }));
+app.delete('/api/admin/users/:id', ...A, wrap(async (req, res) => { const u = await target(req, res); if (!u) return; if (u.id === req.user.id) return res.status(400).json({ message: 'لا يمكنك حذف حسابك أنت.' }); await deleteUser(u.id); res.json({ ok: true }); }));
+app.post('/api/admin/users/:id/edit', ...A, wrap(async (req, res) => {
+  const u = await target(req, res); if (!u) return;
+  const r = await changeIdentity(u, { name: req.body.name, phone: req.body.phone });
+  if (r.error) return res.status(400).json({ message: r.error });
+  res.json({ ok: true });
+}));
 
 app.get('/api/admin/users/:id', ...A, wrap(async (req, res) => {
   const u = await target(req, res); if (!u) return;
