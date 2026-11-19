@@ -41,7 +41,11 @@ const sections = [
   { id: 'hadith', name: 'الحديث', icon: '📜', color: 'teal', desc: 'المصطلح وكتب السنة وأحاديث مختارة',
     topics: require('./sections-hadith.js').map(t => fromNew(t, 'h')) },
   { id: 'muamalat', name: 'المعاملات', icon: '🤝', color: 'sand', desc: 'البيع والربا والقرض والإجارة وأخلاق التجارة',
-    topics: require('./sections-muamalat.js').map(t => fromNew(t, 'm')) }
+    topics: require('./sections-muamalat.js').map(t => fromNew(t, 'm')) },
+  { id: 'sira', name: 'السيرة النبوية', icon: '🌿', color: 'rose', desc: 'من نسبه ومولده ﷺ إلى الهجرة والغزوات والوفاة',
+    topics: require('./sections-sira.js').map(t => fromNew(t, 'sr')) },
+  { id: 'khulafa', name: 'الخلفاء الراشدون', icon: '👑', color: 'olive', desc: 'أبو بكر وعمر وعثمان وعلي رضي الله عنهم',
+    topics: require('./sections-khulafa.js').map(t => fromNew(t, 'kh')) }
 ];
 
 // المجموعة 1: وحدات كتاب «سور وآيات فاضلات» بترتيبه. المجموعة 2: القرآن كاملًا بترتيب المصحف.

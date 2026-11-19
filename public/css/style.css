@@ -377,3 +377,4 @@ table.t th{background:#f0ebdb;color:var(--g8);font-weight:700}
 .ftr .quran{color:var(--g8)}
 .stat b{color:var(--g7);font-weight:500}
 .note{border-radius:16px}
+.sec.rose{--c:#b97a92;--cl:#f6e6ec}.sec.olive{--c:#93a05a;--cl:#eef1de}
